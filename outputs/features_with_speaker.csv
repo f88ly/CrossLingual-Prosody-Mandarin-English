@@ -1,0 +1,60 @@
+python - <<'PY'
+import pandas as pd
+import re
+
+INPUT = "outputs/features.csv"
+OUTPUT = "outputs/features_with_speaker.csv"
+
+df = pd.read_csv(INPUT)
+
+def extract_speaker(row):
+    fname = str(row["file"])
+    lang = str(row["language"]).upper()
+
+    if lang == "EN":
+        # LibriSpeech:
+        # 4051-11218-0052.wav -> EN_4051
+        m = re.match(r"(\d+)-", fname)
+        if m:
+            return "EN_" + m.group(1)
+
+    elif lang == "ZH":
+        # AISHELL:
+        # BAC009S0515W0390.wav -> ZH_S0515
+        m = re.search(r"(S\d{4})W", fname)
+        if m:
+            return "ZH_" + m.group(1)
+
+    return None
+
+df["speaker_id"] = df.apply(extract_speaker, axis=1)
+
+print("\n===== LANGUAGE COUNTS =====")
+print(df["language"].value_counts())
+
+print("\n===== MISSING SPEAKER IDs =====")
+print(df["speaker_id"].isna().sum())
+
+print("\n===== UNIQUE SPEAKERS =====")
+print(df.groupby("language")["speaker_id"].nunique())
+
+print("\n===== UTTERANCES PER SPEAKER =====")
+print(
+    df.groupby(["language", "speaker_id"])
+      .size()
+      .groupby(level=0)
+      .describe()
+)
+
+print("\n===== EXAMPLES =====")
+print(
+    df[["file", "language", "speaker_id"]]
+    .groupby("language")
+    .head(5)
+    .to_string(index=False)
+)
+
+df.to_csv(OUTPUT, index=False)
+
+print("\nSaved:", OUTPUT)
+PY
